@@ -44,7 +44,7 @@ def format_week_label(date_str):
     return f"{start_dt.strftime('%d.%m.%Y')} - {end_dt.strftime('%d.%m.%Y')}"
 
 # --- ARAYÜZ BAŞLIĞI ---
-st.title("📊 PÖH Ailesi - Haftalık Veri Takip Sistemi")
+st.title("📊 PÖH Hak Sahipleri - Haftalık Takip")
 
 # --- ÜST MENÜ: TAKVİMDEN HAFTA SEÇİMİ ---
 col_week_1, col_week_2 = st.columns([2, 1])
