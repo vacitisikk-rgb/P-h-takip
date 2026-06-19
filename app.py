@@ -81,7 +81,6 @@ with tab1:
         col_i1, col_i2 = st.columns(2)
         
         with col_i1:
-            # İstediğiniz seçenek alanı
             selected_activity = st.selectbox(
                 "Yapılan İşlem Türünü Seçin:", 
                 ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
@@ -95,17 +94,14 @@ with tab1:
             if not u_name:
                 st.error("Kullanıcı adı boş olamaz!")
             else:
-                # Kullanıcıyı ana tabloya kaydet
                 cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (u_name,))
                 
-                # Bu haftaya ait kayıt var mı kontrol et
                 cursor.execute(
                     "SELECT terfi, egitim, maas, destek, rozet FROM weekly_data WHERE username=? AND week_start=?",
                     (u_name, selected_week_start)
                 )
                 existing_record = cursor.fetchone()
                 
-                # Seçilen işlem türüne göre değişkenleri hazırla
                 t_val = activity_value if selected_activity == "Terfi" else 0
                 e_val = activity_value if selected_activity == "Eğitim" else 0
                 m_val = activity_value if selected_activity == "Maaş (Mr)" else 0
@@ -113,7 +109,6 @@ with tab1:
                 r_val = activity_value if selected_activity == "Rozet" else 0
                 
                 if existing_record:
-                    # Kayıt varsa, seçilen yeni değeri eskisinin ÜZERİNE EKLE (Topla)
                     cursor.execute(f"""
                         UPDATE weekly_data SET 
                             terfi = terfi + ?, 
@@ -125,7 +120,6 @@ with tab1:
                         WHERE username=? AND week_start=?
                     """, (t_val, e_val, m_val, d_val, r_val, u_status, u_name, selected_week_start))
                 else:
-                    # Kayıt yoksa sıfırdan oluştur
                     cursor.execute("""
                         INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -135,118 +129,18 @@ with tab1:
                 st.success(f"Başarılı! {u_name} isimli kullanıcıya {activity_value} adet '{selected_activity}' eklendi.")
                 st.rerun()
 
-# --- SEKME 2: METİNDEN TOPLU YÜKLE ---
+# --- SEKME 2: HER FORMATI KABUL EDEN GELİŞMİŞ TOPLU YÜKLE ---
 with tab2:
-    st.subheader("Discord / Metin Listesinden Toplu Veri Aktarımı")
-    st.info("Aşağıdaki kutuya haftalık metin formatını olduğu gibi yapıştırıp yükleyebilirsiniz.")
+    st.subheader("Discord / Metin Listesinden Akıllı Toplu Veri Aktarımı")
+    st.info("Farklı botların veya kişilerin yazdığı listeleri buraya yapıştırabilirsiniz. Sistem isimleri ve sayıları otomatik ayıklar.")
     
-    raw_text = st.text_area("Haftalık Rapor Metni:", height=250, placeholder="ArdaDkbs-   5 + 0 + 0 + 6 + 11 = 22\nBerkan1515         İZİNLİ")
+    # Yeni eklenen akıllı seçici
+    bulk_category = st.selectbox(
+        "Yapıştıracağınız Metindeki Veriler Hangi Kategoriye Yazılsın?",
+        ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
+    )
     
-    if st.button("🚀 Verileri Sisteme Çözümle ve Yükle", use_container_width=True):
-        if raw_text:
-            lines = raw_text.strip().split("\n")
-            count = 0
-            for line in lines:
-                line = line.strip()
-                if not line or line.startswith("**") or "HAFTALIK VERİ GİRİŞİ" in line.upper():
-                    continue
-                
-                if "İZİNLİ" in line.upper():
-                    parts = re.split(r'\s+', line)
-                    username = parts[0].replace("-", "").strip()
-                    status, t, e, m, d, r = "İZİNLİ", 0, 0, 0, 0, 0
-                elif "YENİ GELDİ" in line.upper() or "YENİ" in line.upper():
-                    parts = re.split(r'\s{2,}', line) if "  " in line else line.split()
-                    username = parts[0].replace("-", "").strip()
-                    status, t, e, m, d, r = "YENİ GELDİ", 0, 0, 0, 0, 0
-                else:
-                    if "-" in line and not line.startswith("-"):
-                        username_part, math_part = line.split("-", 1)
-                        username = username_part.strip()
-                    else:
-                        match_user = re.match(r'^([a-zA-Z0-9_\.]+)', line)
-                        if match_user:
-                            username = match_user.group(1)
-                            math_part = line[len(username):]
-                        else:
-                            continue
-                    
-                    nums = re.findall(r'\d+', math_part)
-                    if len(nums) >= 5:
-                        t, e, m, d, r = int(nums[0]), int(nums[1]), int(nums[2]), int(nums[3]), int(nums[4])
-                        status = "Aktif"
-                    else:
-                        continue
-                
-                if username:
-                    cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
-                    cursor.execute("""
-                        INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(username, week_start) DO UPDATE SET
-                            terfi=excluded.terfi, egitim=excluded.egitim, maas=excluded.maas,
-                            destek=excluded.destek, rozet=excluded.rozet, status=excluded.status
-                    """, (username, selected_week_start, t, e, m, d, r, status))
-                    count += 1
-            conn.commit()
-            st.success(f"Başarılı! Toplam {count} kişinin verisi yüklendi/güncellendi.")
-            st.rerun()
-
-# --- SEKME 3: HAFTALIK TABLO VE ÇIKTILAR ---
-with tab3:
-    st.subheader(f"📅 {selected_label} Veri Raporları")
-    
-    cursor.execute("""
-        SELECT username, status, terfi, egitim, maas, destek, rozet 
-        FROM weekly_data WHERE week_start = ? ORDER BY username ASC
-    """, (selected_week_start,))
-    rows = cursor.fetchall()
-    
-    if rows:
-        data_list = []
-        text_output = f"**{selected_label} Haftalık Veri Girişi**\nTerfi - Eğitim - Mr - Destek - Rozet Verme Sayıları\n\n"
-        
-        for row in rows:
-            username, status, t, e, m, d, r = row
-            if status in ["İZİNLİ", "YENİ GELDİ"]:
-                toplam = status
-                text_output += f"{username:<15} {status}\n"
-            else:
-                toplam = t + e + m + d + r
-                text_output += f"{username:<15} {t} + {e} + {m} + {d} + {r} = {toplam}\n"
-                
-            data_list.append([username, status, t, e, m, d, r, toplam])
-            
-        df = pd.DataFrame(data_list, columns=["Kullanıcı Adı", "Durum", "Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet", "Toplam"])
-        
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        st.markdown("### 🛠️ Seçili Kullanıcıyı Sil")
-        del_user = st.selectbox("Silmek istediğiniz kullanıcıyı seçin:", ["---"] + [r[0] for r in rows])
-        if del_user != "---":
-            if st.button(f"❌ {del_user} Kişisinin Bu Haftaki Verisini Sil", type="primary"):
-                cursor.execute("DELETE FROM weekly_data WHERE username=? AND week_start=?", (del_user, selected_week_start))
-                conn.commit()
-                st.success(f"{del_user} silindi.")
-                st.rerun()
-        
-        st.markdown("---")
-        
-        col_out1, col_out2 = st.columns(2)
-        
-        with col_out1:
-            st.markdown("#### 📋 Kopyalanabilir Metin Formatı")
-            st.text_area("Aşağıdaki metni direkt kopyalayabilirsiniz:", text_output, height=250)
-            
-        with col_out2:
-            st.markdown("#### 🍏 Excel Formatında İndir")
-            csv_data = df.to_csv(index=False, sep=";").encode('utf-8-sig')
-            st.download_button(
-                label="📥 Excel (CSV) Dosyasını İndir",
-                data=csv_data,
-                file_name=f"poh_haftalik_{selected_week_start}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-    else:
-        st.warning("Seçtiğiniz bu haftaya ait henüz girilmiş bir veri bulunmuyor. Diğer sekmeleri kullanarak veri ekleyebilirsiniz.")
+    raw_text = st.text_area(
+        "Discord'dan Kopyaladığınız Metni Buraya Yapıştırın:", 
+        height=250, 
+        placeholder="Nes_Deniz ➔ 18 Veri\nilunicornnda ➔ 95 Mr » 1.\nHaldo 49\
