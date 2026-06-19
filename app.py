@@ -5,7 +5,7 @@ import re
 import pandas as pd
 
 # Sayfa Ayarları (Mobil ve Geniş Ekran Uyumlu)
-st.set_page_config(page_title="PÖH Ailesi - Haftalık Takip", page_icon="📊", layout="wide")
+st.set_page_config(page_title="PÖH Hak Sahipleri - Haftalık Takip", page_icon="📊", layout="wide")
 
 # Veri Tabanı Kurulumu
 def init_db():
