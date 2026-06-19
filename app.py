@@ -134,7 +134,6 @@ with tab2:
     st.subheader("Discord / Metin Listesinden Akıllı Toplu Veri Aktarımı")
     st.info("Farklı botların veya kişilerin yazdığı listeleri buraya yapıştırabilirsiniz. Sistem isimleri ve sayıları otomatik ayıklar.")
     
-    # Yeni eklenen akıllı seçici
     bulk_category = st.selectbox(
         "Yapıştıracağınız Metindeki Veriler Hangi Kategoriye Yazılsın?",
         ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
@@ -143,4 +142,22 @@ with tab2:
     raw_text = st.text_area(
         "Discord'dan Kopyaladığınız Metni Buraya Yapıştırın:", 
         height=250, 
-        placeholder="Nes_Deniz ➔ 18 Veri\nilunicornnda ➔ 95 Mr » 1.\nHaldo 49\
+        placeholder="Örnek: Nes_Deniz ➔ 18 Veri veya noBlanQ: 3 Eğitim verisi"
+    )
+    
+    if st.button("🚀 Verileri Çözümle ve Seçilen Kategoriye Ekle", use_container_width=True):
+        if raw_text:
+            lines = raw_text.strip().split("\n")
+            count = 0
+            
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith("**") or "VERİLERİ" in line.upper() or "GÜNCELDİR" in line.upper() or line.startswith("➔"):
+                    continue
+                
+                if "İZİNLİ" in line.upper():
+                    parts = re.split(r'[\s➔\-\:]+', line)
+                    username = parts[0].strip()
+                    status, val = "İZİNLİ", 0
+                elif "YENİ GELDİ" in line.upper() or "YENİ" in line.upper():
+                    parts = re.split(r'[\s➔\-\:]
