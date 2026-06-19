@@ -109,7 +109,8 @@ with tab1:
         with col4: d_val = st.number_input("Destek:", min_value=0, value=0, step=1)
         with col5: r_val = st.number_input("Rozet:", min_value=0, value=0, step=1)
         
-        submit_btn = st.form_submit_input("Kaydet / Güncelle", use_container_width=True)
+        # Doğru form submit butonu fonksiyonu kullanıldı
+        submit_btn = st.form_submit_button("Kaydet / Güncelle", use_container_width=True)
         
         if submit_btn:
             if not u_name:
@@ -132,7 +133,7 @@ with tab2:
     st.subheader("Discord / Metin Listesinden Toplu Veri Aktarımı")
     st.info("Aşağıdaki kutuya haftalık metin formatını olduğu gibi yapıştırıp yükleyebilirsiniz.")
     
-    raw_text = st.text_area("Haftalık Rapor Metni:", height=250, placeholder="ArdaDkbs-   5 + 0 + 0 + 6 + 11 = 22\nBerkan1515        İZİNLİ")
+    raw_text = st.text_area("Haftalık Rapor Metni:", height=250, placeholder="ArdaDkbs-   5 + 0 + 0 + 6 + 11 = 22\nBerkan1515         İZİNLİ")
     
     if st.button("🚀 Verileri Sisteme Çözümle ve Yükle", use_container_width=True):
         if raw_text:
@@ -195,7 +196,6 @@ with tab3:
     rows = cursor.fetchall()
     
     if rows:
-        # Pandas DataFrame oluşturma (Tablo gösterimi için)
         data_list = []
         text_output = f"**{selected_label} Haftalık Veri Girişi**\nTerfi - Eğitim - Mr - Destek - Rozet Verme Sayıları\n\n"
         
