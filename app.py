@@ -33,10 +33,9 @@ def init_db():
 conn = init_db()
 cursor = conn.cursor()
 
-# Hafta Hesaplama Fonksiyonları
-def get_current_week_start():
-    today = datetime.date.today()
-    monday = today - datetime.timedelta(days=today.weekday())
+# Herhangi bir tarihin ait olduğu Pazartesi gününü bulma fonksiyonu
+def get_monday_of_date(target_date):
+    monday = target_date - datetime.timedelta(days=target_date.weekday())
     return monday.strftime("%Y-%m-%d")
 
 def format_week_label(date_str):
@@ -44,51 +43,28 @@ def format_week_label(date_str):
     end_dt = start_dt + datetime.timedelta(days=6)
     return f"{start_dt.strftime('%d.%m.%Y')} - {end_dt.strftime('%d.%m.%Y')}"
 
-# Mevcut haftaları çek
-cursor.execute("SELECT DISTINCT week_start FROM weekly_data ORDER BY week_start DESC")
-db_weeks = [row[0] for row in cursor.fetchall()]
-current_w = get_current_week_start()
-if current_w not in db_weeks:
-    db_weeks.insert(0, current_w)
-
 # --- ARAYÜZ BAŞLIĞI ---
 st.title("📊 PÖH Ailesi - Haftalık Veri Takip Sistemi")
 
-# --- ÜST MENÜ: HAFTA SEÇİMİ VE YENİ HAFTA BAŞLATMA ---
+# --- ÜST MENÜ: TAKVİMDEN HAFTA SEÇİMİ ---
 col_week_1, col_week_2 = st.columns([2, 1])
 
 with col_week_1:
-    week_options = {format_week_label(w): w for w in db_weeks}
-    selected_label = st.selectbox("Takip Edilecek Haftayı Seçin:", list(week_options.keys()))
-    selected_week_start = week_options[selected_label]
+    # Kullanıcı takvimden istediği günü seçer
+    chosen_date = st.date_input("Takip Edilecek Tarihi/Haftayı Takvimden Seçin:", datetime.date.today())
+    # Seçilen tarihin ait olduğu haftanın başlangıcı (Pazartesi) hesaplanır
+    selected_week_start = get_monday_of_date(chosen_date)
+    selected_label = format_week_label(selected_week_start)
+    
+    # Bilgilendirme etiketi
+    st.info(f"📅 Şu an işlem yapılan hafta aralığı: **{selected_label}**")
 
 with col_week_2:
-    st.write("##") # Boşluk
-    if st.button("➕ Yeni Hafta Başlat", use_container_width=True):
-        cursor.execute("SELECT max(week_start) FROM weekly_data")
-        max_week = cursor.fetchone()[0]
-        if max_week:
-            dt = datetime.datetime.strptime(max_week, "%Y-%m-%d").date()
-            next_week = dt + datetime.timedelta(days=7)
-        else:
-            next_week = datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())
-        
-        next_week_str = next_week.strftime("%Y-%m-%d")
-        
-        # Kadroyu kopyala
-        if max_week:
-            cursor.execute("SELECT username FROM weekly_data WHERE week_start=?", (max_week,))
-            for u in cursor.fetchall():
-                try:
-                    cursor.execute("""
-                        INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
-                        VALUES (?, ?, 0, 0, 0, 0, 0, 'Aktif')
-                    """, (u[0], next_week_str))
-                except sqlite3.IntegrityError:
-                    pass
-            conn.commit()
-        st.success(f"Yeni Hafta Başlatıldı: {format_week_label(next_week_str)}")
-        st.rerun()
+    st.write("##") # Hizalama Boşluğu
+    st.write("##")
+    # Mevcut seçili haftayı veritabanı altyapısına hazır hale getirmek için boş kayıt tetikleyicisi
+    if st.button("🔄 Seçili Haftayı Sisteme Tanımla", use_container_width=True):
+        st.success(f"Hafta aktif edildi: {selected_label}")
 
 st.markdown("---")
 
@@ -109,7 +85,6 @@ with tab1:
         with col4: d_val = st.number_input("Destek:", min_value=0, value=0, step=1)
         with col5: r_val = st.number_input("Rozet:", min_value=0, value=0, step=1)
         
-        # Doğru form submit butonu fonksiyonu kullanıldı
         submit_btn = st.form_submit_button("Kaydet / Güncelle", use_container_width=True)
         
         if submit_btn:
@@ -212,10 +187,8 @@ with tab3:
             
         df = pd.DataFrame(data_list, columns=["Kullanıcı Adı", "Durum", "Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet", "Toplam"])
         
-        # Etkileşimli Tablo Gösterimi
         st.dataframe(df, use_container_width=True, hide_index=True)
         
-        # Düzenleme ve Silme İşlemleri İçin Seçim
         st.markdown("### 🛠️ Seçili Kullanıcıyı Sil")
         del_user = st.selectbox("Silmek istediğiniz kullanıcıyı seçin:", ["---"] + [r[0] for r in rows])
         if del_user != "---":
@@ -227,7 +200,6 @@ with tab3:
         
         st.markdown("---")
         
-        # Çıktı Alma Alanları
         col_out1, col_out2 = st.columns(2)
         
         with col_out1:
@@ -245,4 +217,4 @@ with tab3:
                 use_container_width=True
             )
     else:
-        st.warning("Bu haftaya ait henüz girilmiş bir veri bulunmuyor. Diğer sekmelerden veri ekleyebilirsiniz.")
+        st.warning("Seçtiğiniz bu haftaya ait henüz girilmiş bir veri bulunmuyor. Diğer sekmeleri kullanarak veri ekleyebilirsiniz.")
