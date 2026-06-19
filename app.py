@@ -50,57 +50,89 @@ st.title("📊 PÖH Ailesi - Haftalık Veri Takip Sistemi")
 col_week_1, col_week_2 = st.columns([2, 1])
 
 with col_week_1:
-    # Kullanıcı takvimden istediği günü seçer
     chosen_date = st.date_input("Takip Edilecek Tarihi/Haftayı Takvimden Seçin:", datetime.date.today())
-    # Seçilen tarihin ait olduğu haftanın başlangıcı (Pazartesi) hesaplanır
     selected_week_start = get_monday_of_date(chosen_date)
     selected_label = format_week_label(selected_week_start)
-    
-    # Bilgilendirme etiketi
     st.info(f"📅 Şu an işlem yapılan hafta aralığı: **{selected_label}**")
 
 with col_week_2:
-    st.write("##") # Hizalama Boşluğu
+    st.write("##") 
     st.write("##")
-    # Mevcut seçili haftayı veritabanı altyapısına hazır hale getirmek için boş kayıt tetikleyicisi
     if st.button("🔄 Seçili Haftayı Sisteme Tanımla", use_container_width=True):
         st.success(f"Hafta aktif edildi: {selected_label}")
 
 st.markdown("---")
 
-# --- ANA KISIM: 3 SEKMELİ YAPI (Veri Girişi, Toplu Yükleme, Tablo ve Çıktı Al) ---
+# --- ANA KISIM: 3 SEKMELİ YAPI ---
 tab1, tab2, tab3 = st.tabs(["✍️ Tekli Veri Girişi", "📋 Metinden Toplu Yükle", "📊 Haftalık Tablo ve Çıktılar"])
 
-# --- SEKME 1: TEKLİ VERİ GİRİŞİ ---
+# --- SEKME 1: YENİ SEÇENEKLİ TEKLİ VERİ GİRİŞİ ---
 with tab1:
-    st.subheader("Kullanıcı Ekle veya Düzenle")
+    st.subheader("İşlem Bazlı Kullanıcı Girişi")
+    
     with st.form("user_form", clear_on_submit=True):
-        u_name = st.text_input("Kullanıcı Adı:").strip()
-        u_status = st.selectbox("Durum:", ["Aktif", "İZİNLİ", "YENİ GELDİ"])
+        col_u1, col_u2 = st.columns([2, 1])
+        with col_u1:
+            u_name = st.text_input("Kullanıcı Adı:").strip()
+        with col_u2:
+            u_status = st.selectbox("Kullanıcı Genel Durumu:", ["Aktif", "İZİNLİ", "YENİ GELDİ"])
+            
+        st.markdown("##### Eklenecek İşlem Bilgileri")
+        col_i1, col_i2 = st.columns(2)
         
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1: t_val = st.number_input("Terfi:", min_value=0, value=0, step=1)
-        with col2: e_val = st.number_input("Eğitim:", min_value=0, value=0, step=1)
-        with col3: m_val = st.number_input("Maaş (Mr):", min_value=0, value=0, step=1)
-        with col4: d_val = st.number_input("Destek:", min_value=0, value=0, step=1)
-        with col5: r_val = st.number_input("Rozet:", min_value=0, value=0, step=1)
-        
-        submit_btn = st.form_submit_button("Kaydet / Güncelle", use_container_width=True)
+        with col_i1:
+            # İstediğiniz seçenek alanı
+            selected_activity = st.selectbox(
+                "Yapılan İşlem Türünü Seçin:", 
+                ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
+            )
+        with col_i2:
+            activity_value = st.number_input("Gireceğiniz Sayı / Miktar:", min_value=0, value=1, step=1)
+            
+        submit_btn = st.form_submit_button("İşlemi Kaydet / Listeye Ekle", use_container_width=True)
         
         if submit_btn:
             if not u_name:
                 st.error("Kullanıcı adı boş olamaz!")
             else:
+                # Kullanıcıyı ana tabloya kaydet
                 cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (u_name,))
-                cursor.execute("""
-                    INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(username, week_start) DO UPDATE SET
-                        terfi=excluded.terfi, egitim=excluded.egitim, maas=excluded.maas,
-                        destek=excluded.destek, rozet=excluded.rozet, status=excluded.status
-                """, (u_name, selected_week_start, t_val, e_val, m_val, d_val, r_val, u_status))
+                
+                # Bu haftaya ait kayıt var mı kontrol et
+                cursor.execute(
+                    "SELECT terfi, egitim, maas, destek, rozet FROM weekly_data WHERE username=? AND week_start=?",
+                    (u_name, selected_week_start)
+                )
+                existing_record = cursor.fetchone()
+                
+                # Seçilen işlem türüne göre değişkenleri hazırla
+                t_val = activity_value if selected_activity == "Terfi" else 0
+                e_val = activity_value if selected_activity == "Eğitim" else 0
+                m_val = activity_value if selected_activity == "Maaş (Mr)" else 0
+                d_val = activity_value if selected_activity == "Destek" else 0
+                r_val = activity_value if selected_activity == "Rozet" else 0
+                
+                if existing_record:
+                    # Kayıt varsa, seçilen yeni değeri eskisinin ÜZERİNE EKLE (Topla)
+                    cursor.execute(f"""
+                        UPDATE weekly_data SET 
+                            terfi = terfi + ?, 
+                            egitim = egitim + ?, 
+                            maas = maas + ?, 
+                            destek = destek + ?, 
+                            rozet = rozet + ?,
+                            status = ?
+                        WHERE username=? AND week_start=?
+                    """, (t_val, e_val, m_val, d_val, r_val, u_status, u_name, selected_week_start))
+                else:
+                    # Kayıt yoksa sıfırdan oluştur
+                    cursor.execute("""
+                        INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (u_name, selected_week_start, t_val, e_val, m_val, d_val, r_val, u_status))
+                    
                 conn.commit()
-                st.success(f"{u_name} verisi başarıyla kaydedildi!")
+                st.success(f"Başarılı! {u_name} isimli kullanıcıya {activity_value} adet '{selected_activity}' eklendi.")
                 st.rerun()
 
 # --- SEKME 2: METİNDEN TOPLU YÜKLE ---
