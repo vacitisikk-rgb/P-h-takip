@@ -92,32 +92,3 @@ with tab1:
         if submit_btn:
             if not u_name:
                 st.error("Kullanıcı adı boş olamaz!")
-            else:
-                cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (u_name,))
-                
-                cursor.execute(
-                    "SELECT terfi, egitim, maas, destek, rozet FROM weekly_data WHERE username=? AND week_start=?",
-                    (u_name, selected_week_start)
-                )
-                existing_record = cursor.fetchone()
-                
-                t_val = activity_value if selected_activity == "Terfi" else 0
-                e_val = activity_value if selected_activity == "Eğitim" else 0
-                m_val = activity_value if selected_activity == "Maaş (Mr)" else 0
-                d_val = activity_value if selected_activity == "Destek" else 0
-                r_val = activity_value if selected_activity == "Rozet" else 0
-                
-                if existing_record:
-                    cursor.execute("""
-                        UPDATE weekly_data SET 
-                            terfi = terfi + ?, egitim = egitim + ?, maas = maas + ?, destek = destek + ?, rozet = rozet + ?, status = ?
-                        WHERE username=? AND week_start=?
-                    """, (t_val, e_val, m_val, d_val, r_val, u_status, u_name, selected_week_start))
-                else:
-                    cursor.execute("""
-                        INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (u_name, selected_week_start, t_val, e_val, m_val, d_val, r_val, u_status))
-                    
-                conn.commit()
-                st.success(f"Başarılı! {u_name} isimli kullanıcı
