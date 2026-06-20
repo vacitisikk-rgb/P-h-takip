@@ -159,17 +159,16 @@ with tab2:
                     username = parts[0].replace("-", "").replace(":", "").strip()
                 else:
                     # Özel Ekip/Rozet formatı kontrolü: "2577-: Rozet: 1 Transfer: 1"
-                    if "ROZET:" in line.upper() and "TRANSFER:" in line.upper():
-                        parts = line.split()
-                        username = parts[0].replace("-", "").replace(":", "").strip()
-                        try:
-                            # Satırdaki tüm sayıları bul
-                            nums = [int(s) for s in parts if s.isdigit()]
-                            if len(nums) >= 2:
-                                val = nums[0]        # İlk sayı Rozet
-                                trans_val = nums[1]  # İkinci sayı Transfer
-                        except:
-                            continue
+                    if "ROZET:" in line.upper() or "TRANSFER:" in line.upper():
+                        clean_line = line.replace("-", " ").replace(":", " ").replace("=", " ")
+                        parts = clean_line.split()
+                        username = parts[0].strip()
+                        nums = [int(s) for s in parts if s.isdigit()]
+                        if len(nums) >= 2:
+                            val = nums[0]        # İlk sayı Rozet
+                            trans_val = nums[1]  # İkinci sayı Transfer
+                        elif len(nums) == 1:
+                            val = nums[0]
                     else:
                         clean_line = line.replace("➔", " ").replace("»", " ").replace(":", " ").replace("-", " ").replace(",", " ")
                         clean_line = re.sub(r'\b(Veri|veri|verisi|Mr|mr|Maaş|Maas)\b', ' ', clean_line)
@@ -209,7 +208,7 @@ with tab2:
                     count += 1
                     
             conn.commit()
-            st.success(f"Başarılı! Listeden {count} kişi ayıklandı ve verileri ilgili hanelere eklendi.")
+            st.success(f"Başarılı! Listeden {count} kişi ayıklandı.")
             st.rerun()
 
 # --- SEKME 3: HAFTALIK TABLO VE ÇIKTILAR ---
@@ -228,7 +227,7 @@ with tab3:
         # Genel Tablo Metin Formatı
         text_output = f"**{selected_label} Haftalık Veri Girişi**\nTerfi - Eğitim - Mr - Destek - Rozet Verme Sayıları\n\n"
         
-        # Rozet Ekibi Özel Çıktı Formatı
+        # Rozet Ekibi Özel Çıktı Formatı (İstediğin `Rozet: X Transfer: Y = Z` düzeni)
         rozet_output = f"🏅 **Rozet Ekibi Listesi ve Format Çıktısı**\n\n{selected_label} Rozet Verme Sayısı\n\n"
         rozet_output += f"    Nick :       Rozet:  Transfer:\n\n"
         
@@ -245,15 +244,15 @@ with tab3:
                 toplam = t + e + m + d + r + tr
                 text_output += f"{username:<15} {t} + {e} + {m} + {d} + {r} + {tr} = {toplam}\n"
                 
-                # Eğer kişinin rozet veya transfer verisi varsa rozet çıktısına ekle
+                # Kişinin rozet veya transfer verisi varsa tam istediğin "= toplam" formatıyla ekle
                 if r > 0 or tr > 0:
-                    rozet_output += f"{username:<12}-: Rozet: {r} Transfer: {tr}\n"
+                    rozet_toplam = r + tr
+                    rozet_output += f"{username:<12}-: Rozet: {r} Transfer: {tr} = {rozet_toplam}\n"
                     total_rozet_count += r
                     total_transfer_count += tr
                 
             data_list.append([username, status, t, e, m, d, r, tr, toplam])
             
-        # Rozet çıktısının en altına toplamları yazdırıyoruz
         rozet_output += f"\n➔ Toplam Dağıtılan Rozet: {total_rozet_count}\n➔ Toplam Yapılan Transfer: {total_transfer_count}"
             
         df = pd.DataFrame(data_list, columns=["Kullanıcı Adı", "Durum", "Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet", "Transfer", "Toplam"])
@@ -277,7 +276,7 @@ with tab3:
             st.markdown("#### 📋 Kopyalanabilir Genel Veri Formatı")
             st.text_area("Genel Tablo Metni:", text_output, height=220)
             
-            st.markdown("#### 🏅 Rozet Ekibi Format Çıktısı (Toplam Sayılı)")
+            st.markdown("#### 🏅 Rozet Ekibi Format Çıktısı")
             st.text_area("Rozet Özel Çıktı Metni:", rozet_output, height=220)
             
         with col_out2:
