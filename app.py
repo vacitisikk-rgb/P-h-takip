@@ -307,5 +307,6 @@ with tab3:
         with col_out2:
             st.markdown("#### 🍏 Excel Formatında İndir")
             csv_data = df.to_csv(index=False, sep=";").encode('utf-8-sig')
-            st.download_button(
+            st.download_button()
+        
                 label="📥
