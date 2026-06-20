@@ -237,15 +237,16 @@ with tab2:
                 rozet_add = rozet_count_input if rozet_action_type == "Rozet" else 0
                 
                 if r_exists:
+                    # BURADAKİ HARF HATASI DÜZELTİLDİ (rozzet_add -> rozet_add yapıldı)
                     cursor.execute("""
                         UPDATE weekly_data SET rozet_transfer=rozet_transfer+?, rozet_rozet=rozet_rozet+?
                         WHERE username=? AND week_start=?
-                    """, (trans_add, rozzet_add, r_select_name, selected_week_start))
+                    """, (trans_add, rozet_add, r_select_name, selected_week_start))
                 else:
                     cursor.execute("""
                         INSERT INTO weekly_data (username, week_start, rozet_transfer, rozet_rozet)
                         VALUES (?, ?, ?, ?)
-                    """, (r_select_name, selected_week_start, trans_add, rozzet_add))
+                    """, (r_select_name, selected_week_start, trans_add, rozet_add))
                 conn.commit()
                 st.success(f"Başarıyla eklendi: **{r_select_name}** -> {rozet_action_type}: {rozet_count_input}")
                 st.rerun()
@@ -334,7 +335,7 @@ with tab4:
     else:
         st.info("Bu haftaya ait girilmiş Genel Hak Sahibi verisi bulunamadı.")
 
-    # 2. BÖLÜM: TAM İSTEDİĞİN FORMATTA GÜNCELLENEN ROZET EKİBİ ÇIKTISI
+    # 2. BÖLÜM: ROZET EKİBİ ÇIKTISI
     st.markdown("---")
     st.markdown("### 🏅 Rozet Ekibi Listesi ve Format Çıktısı")
     cursor.execute("""
@@ -345,11 +346,9 @@ with tab4:
     r_output_rows = cursor.fetchall()
     
     if r_output_rows:
-        # Tam olarak istediğin başlık ve boşluk düzeni
         rozet_text_output = f"{selected_label} Rozet Verme Sayısı \n\n"
         rozet_text_output += f"       Nick :             Rozet:      Transfer:\n\n"
         
-        # Kullanıcı verilerini listeliyoruz
         for r_out in r_output_rows:
             r_name, r_trans, r_roz = r_out
             rozet_text_output += f"{r_name}-: Rozet: {r_roz} Transfer: {r_trans}\n"
@@ -360,7 +359,7 @@ with tab4:
 
     # 3. BÖLÜM: SIFIRLAMA VE YÖNETİM İŞLEMLERİ
     st.markdown("---")
-    st.markdown("### 🛠️ Veri Temizleme ve Yönetim İşlemleri")
+    st.markdown("### 🛠️ Veri Clean ve Yönetim İşlemleri")
     col_action_left, col_action_right = st.columns(2)
     
     with col_action_left:
