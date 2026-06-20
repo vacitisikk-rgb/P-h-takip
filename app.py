@@ -240,12 +240,12 @@ with tab2:
                     cursor.execute("""
                         UPDATE weekly_data SET rozet_transfer=rozet_transfer+?, rozet_rozet=rozet_rozet+?
                         WHERE username=? AND week_start=?
-                    """, (trans_add, rozet_add, r_select_name, selected_week_start))
+                    """, (trans_add, rozzet_add, r_select_name, selected_week_start))
                 else:
                     cursor.execute("""
                         INSERT INTO weekly_data (username, week_start, rozet_transfer, rozet_rozet)
                         VALUES (?, ?, ?, ?)
-                    """, (r_select_name, selected_week_start, trans_add, rozet_add))
+                    """, (r_select_name, selected_week_start, trans_add, rozzet_add))
                 conn.commit()
                 st.success(f"Başarıyla eklendi: **{r_select_name}** -> {rozet_action_type}: {rozet_count_input}")
                 st.rerun()
@@ -334,7 +334,7 @@ with tab4:
     else:
         st.info("Bu haftaya ait girilmiş Genel Hak Sahibi verisi bulunamadı.")
 
-    # 2. BÖLÜM: ALT TOPLAMLARI HESAPLAYAN ROZET EKİBİ ÇIKTISI
+    # 2. BÖLÜM: TAM İSTEDİĞİN FORMATTA GÜNCELLENEN ROZET EKİBİ ÇIKTISI
     st.markdown("---")
     st.markdown("### 🏅 Rozet Ekibi Listesi ve Format Çıktısı")
     cursor.execute("""
@@ -345,23 +345,16 @@ with tab4:
     r_output_rows = cursor.fetchall()
     
     if r_output_rows:
+        # Tam olarak istediğin başlık ve boşluk düzeni
         rozet_text_output = f"{selected_label} Rozet Verme Sayısı \n\n"
         rozet_text_output += f"       Nick :             Rozet:      Transfer:\n\n"
         
-        # Toplamları biriktirmek için değişkenler kuruyoruz
-        total_week_rozet = 0
-        total_week_transfer = 0
-        
+        # Kullanıcı verilerini listeliyoruz
         for r_out in r_output_rows:
             r_name, r_trans, r_roz = r_out
             rozet_text_output += f"{r_name}-: Rozet: {r_roz} Transfer: {r_trans}\n"
-            total_week_rozet += r_roz
-            total_week_transfer += r_trans
             
-        # İstediğin o alt toplam satırını buraya ekliyoruz
-        rozet_text_output += f"\nHaftalık Toplam -> Rozet: {total_week_rozet} | Transfer: {total_week_transfer}\n"
-            
-        st.text_area("Rozet Ekibi Özel Metin Çıktısı (Kopyala):", rozet_text_output, height=240)
+        st.text_area("Rozet Ekibi Özel Metin Çıktısı (Kopyala):", rozet_text_output, height=220)
     else:
         st.info("Bu haftaya ait girilmiş Rozet Ekibi çıktısı bulunamadı.")
 
