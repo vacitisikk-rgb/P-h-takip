@@ -96,5 +96,15 @@ with tab1:
         col_i1, col_i2 = st.columns(2)
         
         with col_i1:
+            selected_activity = st.selectbox(st.markdown("##### Eklenecek İşlem Bilgileri")
+        col_i1, col_i2 = st.columns(2)
+        
+        with col_i1:
             selected_activity = st.selectbox(
+                "Yapılan İşlem Türünü Seçin:", 
+                ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
+            )
+        with col_i2:
+            activity_value = st.number_input("Gireceğiniz Sayı / Miktar:", min_value=0, value=1, step=1)
+                
                 "Yapılan İşlem Türünü Seçin:",
