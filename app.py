@@ -4,7 +4,7 @@ import datetime
 import re
 import pandas as pd
 
-# Sayfa Ayarları (Mobil ve Geniş Ekran Uyumlu)
+# Sayfa Ayarları (Mobil ve Geniş Ekran Uuumlu)
 st.set_page_config(page_title="PÖH Hak Sahipleri - Haftalık Veri Takip", page_icon="📊", layout="wide")
 
 # Veri Tabanı Kurulumu
@@ -283,13 +283,31 @@ with tab3:
         
         st.dataframe(df, use_container_width=True, hide_index=True)
         
-        st.markdown("### 🛠️ Seçili Kullanıcıyı Sil")
-        del_user = st.selectbox("Silmek istediğiniz kullanıcıyı seçin:", ["---"] + [r[0] for r in rows])
-        if del_user != "---":
-            if st.button(f"❌ {del_user} Kişisinin Bu Haftaki Verisini Sil", type="primary"):
-                cursor.execute("DELETE FROM weekly_data WHERE username=? AND week_start=?", (del_user, selected_week_start))
+        # --- YENİLENEN YÖNETİM VE SIFIRLAMA ALANI ---
+        st.markdown("---")
+        st.markdown("### 🛠️ Veri Temizleme ve Yönetim İşlemleri")
+        
+        col_action_left, col_action_right = st.columns(2)
+        
+        with col_action_left:
+            st.markdown("#### 👤 Seçili Kullanıcıyı Sil")
+            del_user = st.selectbox("Bu haftaki kaydı silinecek kullanıcıyı seçin:", ["---"] + [r[0] for r in rows], key="tab3_del_user")
+            if del_user != "---":
+                if st.button(f"❌ {del_user} Kişisinin Bu Haftaki Verisini Sil", type="primary", use_container_width=True):
+                    cursor.execute("DELETE FROM weekly_data WHERE username=? AND week_start=?", (del_user, selected_week_start))
+                    conn.commit()
+                    st.success(f"**{del_user}** kullanıcısının bu haftaki verileri başarıyla silindi.")
+                    st.rerun()
+                    
+        with col_action_right:
+            st.markdown("#### 🚨 Tüm Listeyi Sıfırla")
+            st.warning("Bu işlem, seçili haftaya ait girilmiş olan TÜM kullanıcı verilerini geri alınamaz şekilde temizler.")
+            confirm_reset = st.checkbox("Evet, bu haftanın tüm listesini sıfırlamak istediğime eminim.", key="confirm_mass_reset")
+            
+            if st.button("🗑️ Bu Haftanın Tüm Verilerini Sıfırla", type="primary", disabled=not confirm_reset, use_container_width=True):
+                cursor.execute("DELETE FROM weekly_data WHERE week_start=?", (selected_week_start,))
                 conn.commit()
-                st.success(f"{del_user} silindi.")
+                st.success(f"Seçili haftaya ({selected_label}) ait tüm veriler tamamen sıfırlandı!")
                 st.rerun()
         
         st.markdown("---")
