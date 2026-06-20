@@ -102,8 +102,7 @@ with tab1:
         with col_i1:
             selected_activity = st.selectbox(
                 "Yapılan İşlem Türünü Seçin:", 
-                ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
-            )
+                ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"] )
         with col_i2:
             activity_value = st.number_input("Gireceğiniz Sayı / Miktar:", min_value=0, value=1, step=1)
                 
