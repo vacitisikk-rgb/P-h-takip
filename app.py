@@ -64,64 +64,112 @@ with col_week_2:
 st.markdown("---")
 
 # --- ANA KISIM: 3 SEKMELİ YAPI ---
-tab1, tab2, tab3 = st.tabs(["✍️ Tekli Veri Girişi", "📋 Metinden Toplu Yükle", "📊 Haftalık Tablo ve Çıktılar"])
+tab1, tab2, tab3 = st.tabs(["✍️ Hak Sahipleri & Veri Girişi", "📋 Metinden Toplu Yükle", "📊 Haftalık Tablo ve Çıktılar"])
 
-# --- SEKME 1: İSTEDİĞİN SADE LİSTELİ GİRİŞ ---
+# --- SEKME 1: İSTEDİĞİN CANLI VERİ TABLOSU VE YÖNETİM ALANI ---
 with tab1:
-    st.subheader("İşlem Bazlı Kullanıcı Girişi")
-    
-    # Veritabanındaki kayıtlı tüm kullanıcıları çekiyoruz
+    # Veritabanındaki tüm kullanıcıları çekelim (Açılır menü için)
     cursor.execute("SELECT username FROM users ORDER BY username ASC")
     existing_users = [row[0] for row in cursor.fetchall()]
     
-    # Listeye yeni isim eklenebilsin diye en başa seçenek koyduk
-    user_options = ["+ Yeni Hak Sahibi Ekle"] + existing_users
+    # Ekranda sol ve sağ olmak üzere iki kolon açıyoruz (Sarı alan yerleşimi)
+    col_left, col_right = st.columns([5, 3])
     
-    with st.form("user_form", clear_on_submit=True):
-        col_u1, col_u2 = st.columns([2, 1])
+    with col_left:
+        st.subheader("👥 Seçili Haftanın Hak Sahipleri ve Güncel Verileri")
         
-        with col_u1:
-            selected_user_option = st.selectbox("Kullanıcı Adı Seçin:", user_options)
-            
-            # Eğer yeni ekle seçildiyse altta temiz bir isim yazma kutusu açılır
-            if selected_user_option == "+ Yeni Hak Sahibi Ekle":
-                u_name = st.text_input("Yeni eklenecek kişinin adını yazın:").strip()
-            else:
-                u_name = selected_user_option
+        # Seçili haftanın verilerini isimlerle birlikte çekiyoruz (İstediğin canlı tablo)
+        cursor.execute("""
+            SELECT u.username, 
+                   COALESCE(w.status, 'Aktif') as status,
+                   COALESCE(w.terfi, 0) as terfi, 
+                   COALESCE(w.egitim, 0) as egitim, 
+                   COALESCE(w.maas, 0) as maas, 
+                   COALESCE(w.destek, 0) as destek, 
+                   COALESCE(w.rozet, 0) as rozet
+            FROM users u
+            LEFT JOIN weekly_data w ON u.username = w.username AND w.week_start = ?
+            ORDER BY u.username ASC
+        """, (selected_week_start,))
+        
+        current_week_rows = cursor.fetchall()
+        
+        if current_week_rows:
+            table_data = []
+            for row in current_week_rows:
+                uname, status, t, e, m, d, r = row
+                toplam = status if status in ["İZİNLİ", "YENİ GELDİ"] else (t + e + m + d + r)
+                table_data.append([uname, status, t, e, m, d, r, toplam])
                 
-        with col_u2:
-            u_status = st.selectbox("Kullanıcı Genel Durumu:", ["Aktif", "İZİNLİ", "YENİ GELDİ"])
+            df_display = pd.DataFrame(table_data, columns=[
+                "Kullanıcı Adı", "Durum", "Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet", "Toplam"
+            ])
+            st.dataframe(df_display, use_container_width=True, hide_index=True, height=280)
+        else:
+            st.warning("Sistemde henüz kayıtlı hiçbir Hak Sahibi bulunmuyor.")
             
-        st.markdown("##### Eklenecek İşlem Bilgileri")
-        col_i1, col_i2 = st.columns(2)
+    with col_right:
+        st.subheader("🛠️ Hak Sahibi Yönetimi")
         
-        with col_i1:
-            selected_activity = st.selectbox(
-                "Yapılan İşlem Türünü Seçin:", 
-                ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
-            )
-        with col_i2:
-            activity_value = st.number_input("Gireceğiniz Sayı / Miktar:", min_value=0, value=1, step=1)
-            
-        submit_btn = st.form_submit_button("İşlemi Kaydet / Listeye Ekle", use_container_width=True)
-        
-        if submit_btn:
-            if not u_name:
-                st.error("Kullanıcı adı boş bırakılamaz!")
-            elif u_name == "+ Yeni Hak Sahibi Ekle":
-                st.error("Lütfen geçerli bir isim girin!")
-            else:
-                # İsmi ana tabloya kaydet (yoksa ekler)
-                cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (u_name,))
+        # İSİM EKLEME BÖLÜMÜ
+        with st.form("add_user_form", clear_on_submit=True):
+            new_user_input = st.text_input("Yeni Hak Sahibi Ekle:", placeholder="Kullanıcı adını yazın...").strip()
+            add_btn = st.form_submit_button("➕ Listeye Yeni İsim Ekle", use_container_width=True)
+            if add_btn:
+                if new_user_input:
+                    cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (new_user_input,))
+                    conn.commit()
+                    st.success(f"**{new_user_input}** başarıyla Hak Sahibi listesine eklendi!")
+                    st.rerun()
+                else:
+                    st.error("Lütfen eklenecek ismi boş bırakmayın!")
+                    
+        # İSİM SİLME BÖLÜMÜ
+        st.write("##")
+        with st.form("delete_user_form", clear_on_submit=True):
+            user_to_delete = st.selectbox("Sistemden Tamamen Silinecek Kişi:", ["---"] + existing_users)
+            delete_btn = st.form_submit_button("❌ Seçili İsmi Tamamen Sil", use_container_width=True)
+            if delete_btn:
+                if user_to_delete != "---":
+                    cursor.execute("DELETE FROM weekly_data WHERE username=?", (user_to_delete,))
+                    cursor.execute("DELETE FROM users WHERE username=?", (user_to_delete,))
+                    conn.commit()
+                    st.success(f"**{user_to_delete}** ve tüm verileri sistemden tamamen silindi.")
+                    st.rerun()
+                else:
+                    st.error("Lütfen silmek için listeden geçerli bir isim seçin!")
+
+    # ALT TARAFTAKİ VERİ GİRİŞİ ALANI
+    st.markdown("---")
+    st.subheader("🎯 Seçili Hak Sahibine Veri Girişi")
+    
+    if existing_users:
+        with st.form("data_entry_form", clear_on_submit=True):
+            col_u1, col_u2 = st.columns([2, 1])
+            with col_u1:
+                u_name = st.selectbox("İşlem Yapılacak Hak Sahibini Seçin:", existing_users)
+            with col_u2:
+                u_status = st.selectbox("Kullanıcı Genel Durumu:", ["Aktif", "İZİNLİ", "YENİ GELDİ"])
                 
-                # Bu haftaya ait veri kontrolü
+            col_i1, col_i2 = st.columns(2)
+            with col_i1:
+                selected_activity = st.selectbox(
+                    "Yapılan İşlem Türünü Seçin:", 
+                    ["Terfi", "Eğitim", "Maaş (Mr)", "Destek", "Rozet"]
+                )
+            with col_i2:
+                activity_value = st.number_input("Gireceğiniz Sayı / Miktar:", min_value=0, value=1, step=1)
+                
+            submit_btn = st.form_submit_button("💾 İşlemi Kaydet / Veriyi İşle", use_container_width=True)
+            
+            if submit_btn:
+                # Haftalık veri var mı kontrolü
                 cursor.execute(
                     "SELECT terfi, egitim, maas, destek, rozet FROM weekly_data WHERE username=? AND week_start=?",
                     (u_name, selected_week_start)
                 )
                 existing_record = cursor.fetchone()
                 
-                # Seçilen türe göre miktar ayarla
                 t_val = activity_value if selected_activity == "Terfi" else 0
                 e_val = activity_value if selected_activity == "Eğitim" else 0
                 m_val = activity_value if selected_activity == "Maaş (Mr)" else 0
@@ -129,6 +177,7 @@ with tab1:
                 r_val = activity_value if selected_activity == "Rozet" else 0
                 
                 if existing_record:
+                    # Varsa üzerine ekle (topla)
                     cursor.execute(f"""
                         UPDATE weekly_data SET 
                             terfi = terfi + ?, 
@@ -140,6 +189,7 @@ with tab1:
                         WHERE username=? AND week_start=?
                     """, (t_val, e_val, m_val, d_val, r_val, u_status, u_name, selected_week_start))
                 else:
+                    # Yoksa yeni kayıt aç
                     cursor.execute("""
                         INSERT INTO weekly_data (username, week_start, terfi, egitim, maas, destek, rozet, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -148,6 +198,8 @@ with tab1:
                 conn.commit()
                 st.success(f"Başarılı! **{u_name}** kullanıcısına {activity_value} adet '{selected_activity}' işlendi.")
                 st.rerun()
+    else:
+        st.info("Veri girişi yapabilmek için yukarıdaki bölümden önce en az bir Hak Sahibi eklemelisiniz.")
 
 # --- SEKME 2: METİNDEN TOPLU YÜKLE ---
 with tab2:
@@ -256,11 +308,4 @@ with tab3:
             st.markdown("#### 🍏 Excel Formatında İndir")
             csv_data = df.to_csv(index=False, sep=";").encode('utf-8-sig')
             st.download_button(
-                label="📥 Excel (CSV) Dosyasını İndir",
-                data=csv_data,
-                file_name=f"poh_haftalik_{selected_week_start}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-    else:
-        st.warning("Seçtiğiniz bu haftaya ait henüz girilmiş bir veri bulunmuyor. Diğer sekmeleri kullanarak veri ekleyebilirsiniz.")
+                label="📥
